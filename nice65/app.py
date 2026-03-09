@@ -121,7 +121,7 @@ def main():
 
         comment: INDENT* ";" SENTENCE?
 
-        ?operand: REGISTER | (/#/? /[<>]/? expr)
+        ?operand: REGISTER | STRING | (/#/? /[<>]/? expr)
         ?expr: LITERAL (OP expr)?
             | /\(/ expr /\)/ -> expr
 
@@ -132,6 +132,7 @@ def main():
         LABEL: IDENT | "@" /[a-zA-Z0-9_]+/
         IDENT: /[a-zA-Z_][a-zA-Z0-9_]*/
         LABEL_REL: /:[\+\-]+/
+        STRING: /"[^"]*"/
         OP: "+" | "-" | "*" | "/" | "|" | "^" | "&" | ","
         INDENT: /[ ]+/
     """
