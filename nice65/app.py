@@ -89,6 +89,13 @@ def main():
         action="store_true",
     )
     parser.add_argument(
+        "-C",
+        "--comment-column",
+        help="Column to align inline comments to",
+        type=int,
+        default=24,
+    )
+    parser.add_argument(
         "-v",
         "--version",
         help="Show version",
@@ -115,8 +122,8 @@ def main():
         asm_statement: INSTR (_WS+ operand ("," operand)?)?
         macro_start: ".macro" IDENT (IDENT ("," IDENT)*)?
         macro_end: ".endmacro"
-        control_command: "." IDENT (_WS+ /[^\n]+/)?
-        constant_def: LABEL /=|:=/ /[^\n]+/
+        control_command: "." IDENT (_WS+ /[^;\n]+/)?
+        constant_def: LABEL /=|:=/ /[^;\n]+/
         numeric_var: IDENT control_command
 
         comment: INDENT* ";" SENTENCE?
@@ -147,7 +154,7 @@ def main():
                 if fnmatch.fnmatch(file, args.pattern):
                     path = os.path.join(root, file)
                     print("Fixing", path, file=sys.stderr)
-                    fix(grammar, path, None, True, args.colonless_labels, args.lowercase_mnemonics)
+                    fix(grammar, path, None, True, args.colonless_labels, args.lowercase_mnemonics, args.comment_column)
     else:
         fix(
             grammar,
@@ -156,6 +163,7 @@ def main():
             args.modify_in_place,
             args.colonless_labels,
             args.lowercase_mnemonics,
+            args.comment_column,
         )
 
 
@@ -165,7 +173,7 @@ class Version(Action):
         parser.exit()
 
 
-def fix(grammar, infile, outfile, modify_in_place, colonless_labels, lowercase_mnemonics):
+def fix(grammar, infile, outfile, modify_in_place, colonless_labels, lowercase_mnemonics, comment_column=24):
     if infile == "-":
         content = sys.stdin.read()
     else:
@@ -198,7 +206,7 @@ def fix(grammar, infile, outfile, modify_in_place, colonless_labels, lowercase_m
                     s_len = len(string)
                     if '\n' in string:
                         s_len = s_len - string.rfind('\n') - 1
-                    padding = (24 - s_len) if i > 0 else 0
+                    padding = max(1, comment_column - 1 - s_len) if i > 0 else 0
                     string += " " * padding + ("; " + sentence).strip()
                 else:
                     sentence = next(iter([x for x in child.children if x.type == "SENTENCE"]), "").strip()
@@ -237,7 +245,7 @@ def fix(grammar, infile, outfile, modify_in_place, colonless_labels, lowercase_m
                         + "."
                         + name.lower()
                         + " "
-                        + " ".join(statement.children[1:])
+                        + " ".join(x.strip() for x in statement.children[1:])
                     )
                 elif statement.data == "macro_start":
                     name = statement.children[0].strip()
